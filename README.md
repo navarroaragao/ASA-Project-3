@@ -58,3 +58,9 @@ O programa escreve no **standard output** `n` linhas:
 Instalação da biblioteca PuLP:
 ```bash
 python3 -m pip install pulp
+```
+Para correr o programa:
+```
+python3 SnailSoft.py < ./Inputs_Outputs/input1.txt
+```
+- No final é possível confirmar o output através do output com o mesmo número do input
