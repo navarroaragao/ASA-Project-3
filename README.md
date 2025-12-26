@@ -7,7 +7,7 @@ O objetivo é determinar, para cada equipa de um campeonato por pontos com duas 
 
 ---
 
-## 🧠 Abordagem
+## Abordagem
 
 O problema é modelado como um conjunto de **problemas de Programação Linear (PL)**, resolvidos com a biblioteca **PuLP** em Python.
 
@@ -23,7 +23,7 @@ Caso não exista qualquer valor de `k` que satisfaça as restrições, conclui-s
 
 ---
 
-## 📥 Input
+## Input
 
 O programa lê do **standard input**:
 
@@ -39,7 +39,7 @@ O programa lê do **standard input**:
 
 ---
 
-## 📤 Output
+## Output
 
 O programa escreve no **standard output** `n` linhas:
 
@@ -48,7 +48,7 @@ O programa escreve no **standard output** `n` linhas:
 
 ---
 
-## ▶️ Execução
+## Execução
 
 ### Dependências
 
