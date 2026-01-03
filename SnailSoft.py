@@ -1,124 +1,152 @@
+#Copy from another submission 2
+
+import sys
 import pulp
 
-def main():
+sys.setrecursionlimit(5000)
 
-    n, m = map(int, input().split()) 
-    
-    points = [0] * (n + 1) 
-    
-    games = [[False] * (n + 1) for _ in range(n + 1)]
+SOLVER = pulp.PULP_CBC_CMD(msg=0, timeLimit=0.4, gapRel=0.01)
+
+def main():
+    input_data = sys.stdin.read().split()
+    if not input_data:
+        return
+
+    iterator = iter(input_data)
+    try:
+        n = int(next(iterator))
+        m = int(next(iterator))
+    except StopIteration:
+        return
+
+    points = [0] * (n + 1)
+    games_played = [[False] * (n + 1) for _ in range(n + 1)]
     
     for _ in range(m):
-        i, j, results = map(int, input().split())
-
-        games[i][j] = True
+        u = int(next(iterator))
+        v = int(next(iterator))
+        r = int(next(iterator))
         
-        if results == i:  
-            points[i] += 3
-        elif results == j:  
-            points[j] += 3
-        else:  
-            points[i] += 1
-            points[j] += 1
+        games_played[u][v] = True
+        
+        if r == u:
+            points[u] += 3
+        elif r == v:
+            points[v] += 3
+        else:
+            points[u] += 1
+            points[v] += 1
+
+    target_games_map = {i: [] for i in range(n + 1)}
     
+    all_unplayed = []
+    
+    matches_remaining_count = [0] * (n + 1)
+
+    for i in range(1, n + 1):
+        for j in range(1, n + 1):
+            if i == j: continue
+            if not games_played[i][j]:
+                match = (i, j)
+                all_unplayed.append(match)
+                target_games_map[i].append(match)
+                target_games_map[j].append(match)
+                matches_remaining_count[i] += 1
+
     for team in range(1, n + 1):
-        min_wins = calculate_min_wins(n, team, points, games)
-        print(min_wins)
+        solve_team(n, team, points, target_games_map, all_unplayed, matches_remaining_count)
 
-def calculate_min_wins(n, target_team, points, games):
-
-    target_remaining_matches = []
-    for j in range(1, n + 1):
-        if j != target_team:
-
-            if not games[target_team][j]:
-                target_remaining_matches.append((target_team, j))
-
-            if not games[j][target_team]:
-                target_remaining_matches.append((j, target_team))
+def solve_team(n, target_team, points, target_games_map, all_unplayed, matches_remaining_count):
+    my_matches = target_games_map[target_team]
+    num_my_matches = len(my_matches)
     
-    left, right = 0, len(target_remaining_matches)
-    result = -1
-    
+    left, right = 0, num_my_matches
+    best_result = -1
+
+    if not can_win(n, target_team, points, right, my_matches, all_unplayed, matches_remaining_count):
+        print("-1")
+        return
+
     while left <= right:
         mid = (left + right) // 2
-        if can_win_with_wins(n, target_team, points, games, mid, target_remaining_matches):
-            result = mid
+        if can_win(n, target_team, points, mid, my_matches, all_unplayed, matches_remaining_count):
+            best_result = mid
             right = mid - 1
         else:
             left = mid + 1
-    
-    return result
+            
+    print(best_result)
 
-def can_win_with_wins(n, target_team, initial_points, games, num_wins, target_remaining_matches):
+def can_win(n, target_team, points, num_wins, my_matches, all_unplayed, matches_remaining_count):
+    target_final_score = points[target_team] + (num_wins * 3) + (len(my_matches) - num_wins)
     
-    if num_wins > len(target_remaining_matches):
-        return False
-    
-    max_target_points = initial_points[target_team] + num_wins * 3 + (len(target_remaining_matches) - num_wins)
-    
-    for team in range(1, n + 1):
-        if team != target_team and initial_points[team] > max_target_points:
-            return False
-    
-    other_matches = []
+    dangerous_teams = []
+    dangerous_set = set()
+
     for i in range(1, n + 1):
-        if i == target_team:
-            continue
-        for j in range(1, n + 1):
-            if j != i and j != target_team and not games[i][j]:
-                other_matches.append((i, j))
-    
-    prob = pulp.LpProblem("SnailSoft", pulp.LpMinimize)
-    
-    x = {match: pulp.LpVariable(f"x_{match[0]}_{match[1]}", cat=pulp.LpBinary) 
-         for match in other_matches}
-    e = {match: pulp.LpVariable(f"e_{match[0]}_{match[1]}", cat=pulp.LpBinary) 
-         for match in other_matches}
-    
-    y = {match: pulp.LpVariable(f"y_{match[0]}_{match[1]}", cat=pulp.LpBinary) 
-         for match in target_remaining_matches}
-    d = {match: pulp.LpVariable(f"d_{match[0]}_{match[1]}", cat=pulp.LpBinary) 
-         for match in target_remaining_matches}
-    
-    prob += pulp.lpSum(y.values()) == num_wins
-    
-    for match in target_remaining_matches:
-        prob += y[match] + d[match] <= 1
-    
-    for match in other_matches:
-        prob += x[match] + e[match] <= 1
-    
-    for team in range(1, n + 1):
-        if team == target_team:
-            continue
+        if i == target_team: continue
         
-        team_points = initial_points[team]
-        
-        for match in target_remaining_matches:
-            home, away = match
-            if home == target_team and away == team:
-                team_points += 3 * (1 - y[match] - d[match]) + d[match]
-            elif home == team and away == target_team:
-                team_points += 3 * (1 - y[match] - d[match]) + d[match]
-        
-        for other in range(1, n + 1):
-            if other == team or other == target_team:
-                continue
+        if points[i] > target_final_score:
+            return False
             
-            if not games[team][other]:
-                team_points += 3 * x[(team, other)] + e[(team, other)]
-            
-            if not games[other][team]:
-                team_points += 3 * (1 - x[(other, team)] - e[(other, team)]) + e[(other, team)]
+        max_possible_i = points[i] + (3 * matches_remaining_count[i])
         
-        prob += team_points <= max_target_points
+        if max_possible_i > target_final_score:
+            dangerous_teams.append(i)
+            dangerous_set.add(i)
+            
+    if not dangerous_teams:
+        return True
+
+    prob = pulp.LpProblem("Check", pulp.LpMinimize)
     
+    target_vars = {}
+    for match in my_matches:
+        y = pulp.LpVariable(f"y{match[0]}_{match[1]}", cat=pulp.LpBinary)
+        d = pulp.LpVariable(f"d{match[0]}_{match[1]}", cat=pulp.LpBinary)
+        target_vars[match] = (y, d)
+        prob += y + d <= 1
+        
+    prob += pulp.lpSum([v[0] for v in target_vars.values()]) == num_wins
+    
+    other_vars = {}
+    
+    relevant_matches = []
+    for u, v in all_unplayed:
+        if u == target_team or v == target_team:
+            continue
+        if u in dangerous_set or v in dangerous_set:
+            relevant_matches.append((u, v))
+            
+    for u, v in relevant_matches:
+        x = pulp.LpVariable(f"x{u}_{v}", cat=pulp.LpBinary)
+        e = pulp.LpVariable(f"e{u}_{v}", cat=pulp.LpBinary)
+        other_vars[(u, v)] = (x, e)
+        prob += x + e <= 1
+
+    for team in dangerous_teams:
+        terms = [points[team]]
+        
+        for u, v in my_matches:
+            if u == team or v == team:
+                y, d = target_vars[(u, v)]
+                terms.append(3 - 3*y - 2*d)
+        
+        for u, v in relevant_matches:
+            if (u, v) in other_vars:
+                x, e = other_vars[(u, v)]
+                if u == team:
+                    terms.append(3*x + e)
+                elif v == team:
+                    terms.append(3 - 3*x - 2*e)
+        
+        prob += pulp.lpSum(terms) <= target_final_score
+
     prob += 0
     
-    prob.solve(pulp.PULP_CBC_CMD(msg=0, timeLimit=10, gapRel=0.01))
+    status = prob.solve(SOLVER)
     
-    return prob.status == pulp.LpStatusOptimal
+    return status == pulp.LpStatusOptimal
 
 if __name__ == "__main__":
     main()
